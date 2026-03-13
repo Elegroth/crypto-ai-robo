@@ -1,0 +1,67 @@
+name: Cleanup Dev Stack
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+      PREFIX: crypto-robo-dev
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Delete EventBridge targets and rules
+        run: |
+          aws events remove-targets --rule "$PREFIX-daily-refresh" --ids daily-refresh >/dev/null 2>&1 || true
+          aws events remove-targets --rule "$PREFIX-weekly-rebalance" --ids weekly-rebalance >/dev/null 2>&1 || true
+          aws events delete-rule --name "$PREFIX-daily-refresh" >/dev/null 2>&1 || true
+          aws events delete-rule --name "$PREFIX-weekly-rebalance" >/dev/null 2>&1 || true
+      - name: Delete Step Functions state machine
+        run: |
+          ARN="$(aws stepfunctions list-state-machines --query \"stateMachines[?name=='$PREFIX-rebalance'].stateMachineArn | [0]\" --output text)"
+          if [ "$ARN" != "None" ] && [ -n "$ARN" ]; then
+            aws stepfunctions delete-state-machine --state-machine-arn "$ARN"
+          fi
+      - name: Delete Lambda function and log group
+        run: |
+          aws lambda delete-function --function-name "$PREFIX" >/dev/null 2>&1 || true
+          aws logs delete-log-group --log-group-name "/aws/lambda/$PREFIX" >/dev/null 2>&1 || true
+      - name: Delete IAM roles and policies
+        run: |
+          for ROLE in "$PREFIX-lambda-role" "$PREFIX-step-functions-role" "$PREFIX-eventbridge-step-functions-role"; do
+            aws iam delete-role-policy --role-name "$ROLE" --policy-name "$ROLE" >/dev/null 2>&1 || true
+          done
+          aws iam delete-role-policy --role-name "$PREFIX-lambda-role" --policy-name "$PREFIX-lambda-runtime" >/dev/null 2>&1 || true
+          aws iam delete-role-policy --role-name "$PREFIX-step-functions-role" --policy-name "$PREFIX-step-functions" >/dev/null 2>&1 || true
+          aws iam delete-role-policy --role-name "$PREFIX-eventbridge-step-functions-role" --policy-name "$PREFIX-eventbridge-step-functions" >/dev/null 2>&1 || true
+          aws iam detach-role-policy --role-name "$PREFIX-lambda-role" --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole >/dev/null 2>&1 || true
+          aws iam delete-role --role-name "$PREFIX-lambda-role" >/dev/null 2>&1 || true
+          aws iam delete-role --role-name "$PREFIX-step-functions-role" >/dev/null 2>&1 || true
+          aws iam delete-role --role-name "$PREFIX-eventbridge-step-functions-role" >/dev/null 2>&1 || true
+      - name: Delete data stores and bucket
+        run: |
+          aws dynamodb delete-table --table-name "$PREFIX-state" >/dev/null 2>&1 || true
+          aws s3 rm "s3://$PREFIX-reports" --recursive >/dev/null 2>&1 || true
+          aws s3api delete-bucket --bucket "$PREFIX-reports" >/dev/null 2>&1 || true
+      - name: Delete KMS alias and schedule key deletion
+        run: |
+          KEY_ID="$(aws kms list-aliases --query \"Aliases[?AliasName=='alias/$PREFIX'].TargetKeyId | [0]\" --output text)"
+          aws kms delete-alias --alias-name "alias/$PREFIX" >/dev/null 2>&1 || true
+          if [ "$KEY_ID" != "None" ] && [ -n "$KEY_ID" ]; then
+            aws kms schedule-key-deletion --key-id "$KEY_ID" --pending-window-in-days 7 >/dev/null 2>&1 || true
+          fi
+      - name: Cleanup summary
+        run: |
+          echo "## Dev Stack Cleanup" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Prefix: $PREFIX" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Region: $AWS_REGION" >> "$GITHUB_STEP_SUMMARY"
