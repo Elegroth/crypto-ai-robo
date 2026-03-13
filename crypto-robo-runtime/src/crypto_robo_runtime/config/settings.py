@@ -10,7 +10,7 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: str = Field(default="dev", alias="APP_ENV")
-    aws_region: str = Field(default="us-east-1", alias="AWS_REGION")
+    aws_region: str = Field(default="us-east-2", alias="AWS_REGION")
     active_exchange: str = Field(default="coinbase", alias="ACTIVE_EXCHANGE")
     live_trading: bool = Field(default=False, alias="LIVE_TRADING")
     quote_symbol: str = Field(default="USD", alias="QUOTE_SYMBOL")
