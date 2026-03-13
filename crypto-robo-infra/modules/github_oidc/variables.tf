@@ -1,5 +1,5 @@
 variable "project_name" {
-  type = string
+  type    = string
   default = "crypto-robo"
 }
 
@@ -12,6 +12,6 @@ variable "github_repo" {
 }
 
 variable "branch_name" {
-  type = string
+  type    = string
   default = "develop"
 }

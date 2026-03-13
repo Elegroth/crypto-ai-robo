@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from crypto_robo_runtime.config.settings import AppSettings
 from crypto_robo_runtime.domain.models import FeatureSnapshot
@@ -9,7 +9,7 @@ def _feature(symbol: str, momentum: float, volatility: float) -> FeatureSnapshot
     return FeatureSnapshot(
         asset_id=symbol.lower(),
         symbol=symbol,
-        as_of=datetime.now(timezone.utc),
+        as_of=datetime.now(UTC),
         price_usd=100.0,
         momentum_30d=momentum,
         momentum_90d=momentum,

@@ -7,7 +7,7 @@ from typing import Literal
 
 from crypto_robo_runtime.audit.reporting import render_rebalance_summary
 from crypto_robo_runtime.config.settings import AppSettings
-from crypto_robo_runtime.domain.models import ExecutedOrder, ExecutionReport, ExchangeName
+from crypto_robo_runtime.domain.models import ExchangeName, ExecutedOrder, ExecutionReport
 from crypto_robo_runtime.interfaces.providers import (
     ExchangeAdapter,
     MarketDataProvider,

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -90,7 +90,7 @@ def test_weekly_rebalance_service_rejects_duplicate_idempotency_keys() -> None:
         research=StubResearch(),
         state_store=state_store,
     )
-    as_of = datetime.now(timezone.utc)
+    as_of = datetime.now(UTC)
 
     report, _ = service.run(as_of=as_of, idempotency_key="dup-key")
 

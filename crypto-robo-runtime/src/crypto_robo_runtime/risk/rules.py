@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from crypto_robo_runtime.config.settings import AppSettings
 from crypto_robo_runtime.domain.models import FeatureSnapshot, ResearchMemo, RiskRegime
@@ -19,8 +19,8 @@ def validate_feature_freshness(
     return [
         f"stale_feature:{feature.symbol}"
         for feature in features
-        if feature.as_of.replace(tzinfo=timezone.utc)
-        < freshness_cutoff.replace(tzinfo=timezone.utc)
+        if feature.as_of.replace(tzinfo=UTC)
+        < freshness_cutoff.replace(tzinfo=UTC)
     ]
 
 
@@ -33,7 +33,7 @@ def validate_research_memo(
 
     warnings: list[str] = []
     freshness_cutoff = now - timedelta(hours=settings.research_freshness_hours)
-    if memo.as_of.replace(tzinfo=timezone.utc) < freshness_cutoff.replace(tzinfo=timezone.utc):
+    if memo.as_of.replace(tzinfo=UTC) < freshness_cutoff.replace(tzinfo=UTC):
         warnings.append("stale_research_memo")
     if not settings.ai_risk_min <= memo.multiplier <= settings.ai_risk_max:
         warnings.append("research_multiplier_out_of_bounds")

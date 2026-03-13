@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from crypto_robo_runtime.config.settings import AppSettings
 from crypto_robo_runtime.domain.models import FeatureSnapshot, ResearchMemo, RiskRegime
@@ -11,7 +11,7 @@ def test_feature_freshness_warns_on_stale_data() -> None:
     feature = FeatureSnapshot(
         asset_id="btc",
         symbol="BTC",
-        as_of=datetime.now(timezone.utc) - timedelta(hours=30),
+        as_of=datetime.now(UTC) - timedelta(hours=30),
         price_usd=100.0,
         momentum_30d=0.1,
         momentum_90d=0.1,
@@ -22,7 +22,7 @@ def test_feature_freshness_warns_on_stale_data() -> None:
         btc_regime_signal=1.0,
     )
 
-    warnings = validate_feature_freshness([feature], settings, datetime.now(timezone.utc))
+    warnings = validate_feature_freshness([feature], settings, datetime.now(UTC))
 
     assert warnings == ["stale_feature:BTC"]
 
@@ -30,7 +30,7 @@ def test_feature_freshness_warns_on_stale_data() -> None:
 def test_low_confidence_research_defaults_to_neutral() -> None:
     settings = AppSettings(AI_DEFAULT_MULTIPLIER=0.8)
     memo = ResearchMemo(
-        as_of=datetime.now(timezone.utc),
+        as_of=datetime.now(UTC),
         regime=RiskRegime.RISK_ON,
         confidence=0.2,
         multiplier=1.0,
@@ -40,7 +40,7 @@ def test_low_confidence_research_defaults_to_neutral() -> None:
     )
 
     normalized = normalize_research_memo(memo, settings)
-    warnings = validate_research_memo(normalized, settings, datetime.now(timezone.utc))
+    warnings = validate_research_memo(normalized, settings, datetime.now(UTC))
 
     assert normalized.regime == RiskRegime.NEUTRAL
     assert normalized.multiplier == 0.8

@@ -2,10 +2,11 @@
 .coverage
 .mypy_cache/
 .pytest_cache/
+pytest-cache-files-*/
 .ruff_cache/
 .terraform/
-.terraform.lock.hcl
 .venv/
+.env
 *.egg-info/
 *.pyc
 *.pyd

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from crypto_robo_runtime.config.settings import AppSettings
 from crypto_robo_runtime.domain.models import FeatureSnapshot, Holding
@@ -17,7 +17,7 @@ def test_generate_rebalance_plan_respects_drift_threshold_and_notional_cap() -> 
         FeatureSnapshot(
             asset_id="btc",
             symbol="BTC",
-            as_of=datetime.now(timezone.utc),
+            as_of=datetime.now(UTC),
             price_usd=100.0,
             momentum_30d=0.9,
             momentum_90d=0.9,
@@ -44,7 +44,7 @@ def test_generate_rebalance_plan_respects_drift_threshold_and_notional_cap() -> 
         targets,
         settings,
         ai_multiplier=1.0,
-        as_of=datetime.now(timezone.utc),
+        as_of=datetime.now(UTC),
     )
 
     assert len(plan.orders) == 1
@@ -74,7 +74,7 @@ def test_generate_rebalance_plan_sells_assets_missing_from_targets() -> None:
         [],
         settings,
         ai_multiplier=0.5,
-        as_of=datetime.now(timezone.utc),
+        as_of=datetime.now(UTC),
     )
 
     assert len(plan.orders) == 1

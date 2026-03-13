@@ -7,6 +7,19 @@ locals {
   }
 }
 
+resource "aws_kms_key" "platform" {
+  description             = "KMS key for ${local.prefix} platform resources"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags                    = local.common_tags
+}
+
+resource "aws_kms_alias" "platform" {
+  name          = "alias/${local.prefix}"
+  target_key_id = aws_kms_key.platform.key_id
+}
+
+#tfsec:ignore:aws-s3-enable-bucket-logging The MVP keeps S3 access logging out of scope to avoid an extra log bucket and policy chain.
 resource "aws_s3_bucket" "reports" {
   bucket = "${local.prefix}-reports"
   tags   = local.common_tags
@@ -17,6 +30,26 @@ resource "aws_s3_bucket_versioning" "reports" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "reports" {
+  bucket = aws_s3_bucket.reports.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.platform.arn
+      sse_algorithm     = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "reports" {
+  bucket                  = aws_s3_bucket.reports.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_dynamodb_table" "state" {
@@ -39,12 +72,18 @@ resource "aws_dynamodb_table" "state" {
     enabled = true
   }
 
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.platform.arn
+  }
+
   tags = local.common_tags
 }
 
 resource "aws_cloudwatch_log_group" "runtime" {
   name              = "/aws/lambda/${local.prefix}"
   retention_in_days = 30
+  kms_key_id        = aws_kms_key.platform.arn
   tags              = local.common_tags
 }
 
@@ -72,6 +111,7 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+#tfsec:ignore:aws-iam-no-policy-wildcards The object-level S3 permissions are scoped to one bucket and require the object suffix wildcard.
 resource "aws_iam_role_policy" "lambda_runtime" {
   name = "${local.prefix}-lambda-runtime"
   role = aws_iam_role.lambda.id
@@ -100,6 +140,15 @@ resource "aws_iam_role_policy" "lambda_runtime" {
       {
         Effect = "Allow"
         Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.platform.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "secretsmanager:GetSecretValue"
         ]
         Resource = "*"
@@ -123,6 +172,10 @@ resource "aws_lambda_function" "runtime" {
   )
   s3_bucket = var.runtime_package_path == "" ? var.runtime_package_s3_bucket : null
   s3_key    = var.runtime_package_path == "" ? var.runtime_package_s3_key : null
+
+  tracing_config {
+    mode = "Active"
+  }
 
   environment {
     variables = {
@@ -208,8 +261,8 @@ resource "aws_sfn_state_machine" "rebalance" {
     StartAt = "RunWeeklyRebalance"
     States = {
       RunWeeklyRebalance = {
-        Type = "Task"
-        Resource = "arn:aws:states:::lambda:invoke"
+        Type       = "Task"
+        Resource   = "arn:aws:states:::lambda:invoke"
         OutputPath = "$.Payload"
         Parameters = {
           FunctionName = aws_lambda_function.runtime.arn

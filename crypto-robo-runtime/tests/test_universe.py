@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from crypto_robo_runtime.config.settings import AppSettings
 from crypto_robo_runtime.domain.models import AssetListing, ExchangeName
@@ -44,7 +44,7 @@ def test_build_universe_excludes_non_investable_assets() -> None:
         ),
     ]
 
-    universe = build_universe(listings, ExchangeName.COINBASE, datetime.now(timezone.utc), settings)
+    universe = build_universe(listings, ExchangeName.COINBASE, datetime.now(UTC), settings)
 
     assert [asset.symbol for asset in universe.approved_assets] == ["BTC"]
     assert universe.excluded_symbols["USDC"] == "stablecoin_not_investable"
