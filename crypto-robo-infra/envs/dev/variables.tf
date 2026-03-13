@@ -3,14 +3,6 @@ variable "aws_region" {
   default = "us-east-2"
 }
 
-variable "github_owner" {
-  type = string
-}
-
-variable "github_repo" {
-  type = string
-}
-
 variable "runtime_package_path" {
   type    = string
   default = ""

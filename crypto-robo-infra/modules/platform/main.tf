@@ -1,3 +1,7 @@
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
 locals {
   prefix = "${var.project_name}-${var.environment}"
   common_tags = {
@@ -11,7 +15,41 @@ resource "aws_kms_key" "platform" {
   description             = "KMS key for ${local.prefix} platform resources"
   deletion_window_in_days = 7
   enable_key_rotation     = true
-  tags                    = local.common_tags
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootPermissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudWatchLogsUse"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.name}.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey*",
+          "kms:ReEncrypt*"
+        ]
+        Resource = "*"
+        Condition = {
+          ArnEquals = {
+            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.prefix}"
+          }
+        }
+      }
+    ]
+  })
+  tags = local.common_tags
 }
 
 resource "aws_kms_alias" "platform" {
@@ -180,7 +218,6 @@ resource "aws_lambda_function" "runtime" {
   environment {
     variables = {
       APP_ENV                  = var.environment
-      AWS_REGION               = var.aws_region
       ACTIVE_EXCHANGE          = var.active_exchange
       STATE_TABLE_NAME         = aws_dynamodb_table.state.name
       REPORTS_BUCKET           = aws_s3_bucket.reports.bucket
