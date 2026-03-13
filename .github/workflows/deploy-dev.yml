@@ -18,6 +18,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: dev
+    env:
+      TF_VAR_github_owner: ${{ github.repository_owner }}
+      TF_VAR_github_repo: ${{ github.event.repository.name }}
     defaults:
       run:
         working-directory: crypto-robo-infra/envs/dev
