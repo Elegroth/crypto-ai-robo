@@ -121,7 +121,7 @@ jobs:
           aws events remove-targets --rule "$PREFIX-weekly-rebalance" --ids weekly-rebalance >/dev/null 2>&1 || true
           aws events delete-rule --name "$PREFIX-daily-refresh" >/dev/null 2>&1 || true
           aws events delete-rule --name "$PREFIX-weekly-rebalance" >/dev/null 2>&1 || true
-          ARN="$(aws stepfunctions list-state-machines --query \"stateMachines[?name=='$PREFIX-rebalance'].stateMachineArn | [0]\" --output text)"
+          ARN="$(aws stepfunctions list-state-machines --query "stateMachines[?name=='${PREFIX}-rebalance'].stateMachineArn | [0]" --output text)"
           if [ "$ARN" != "None" ] && [ -n "$ARN" ]; then
             aws stepfunctions delete-state-machine --state-machine-arn "$ARN"
           fi
@@ -137,7 +137,7 @@ jobs:
           aws dynamodb delete-table --table-name "$PREFIX-state" >/dev/null 2>&1 || true
           aws s3 rm "s3://$PREFIX-reports" --recursive >/dev/null 2>&1 || true
           aws s3api delete-bucket --bucket "$PREFIX-reports" >/dev/null 2>&1 || true
-          KEY_ID="$(aws kms list-aliases --query \"Aliases[?AliasName=='alias/$PREFIX'].TargetKeyId | [0]\" --output text)"
+          KEY_ID="$(aws kms list-aliases --query "Aliases[?AliasName=='alias/${PREFIX}'].TargetKeyId | [0]" --output text)"
           aws kms delete-alias --alias-name "alias/$PREFIX" >/dev/null 2>&1 || true
           if [ "$KEY_ID" != "None" ] && [ -n "$KEY_ID" ]; then
             aws kms schedule-key-deletion --key-id "$KEY_ID" --pending-window-in-days 7 >/dev/null 2>&1 || true
